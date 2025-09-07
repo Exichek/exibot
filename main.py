@@ -45,7 +45,7 @@ logging.basicConfig(
     ]
 )
 
-logging.getLogger().setLevel(logging.DEBUG)
+# logging.getLogger().setLevel(logging.DEBUG)
 
 # === Aiogram core ===
 bot = Bot(token=TELEGRAM_TOKEN)
