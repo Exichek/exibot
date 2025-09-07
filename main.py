@@ -19,6 +19,8 @@ from aiogram import Bot, Dispatcher, F, Router
 from aiogram.types import Update, BotCommand, Message
 from aiogram.filters import Command
 from aiogram.exceptions import TelegramForbiddenError
+from aiogram import types
+
 
 # === Константы ===
 TELEGRAM_LIMIT = 4096  # максимальная длина одного сообщения
@@ -232,7 +234,7 @@ async def detect_mood_ai(user_message: str) -> str:
                         "- 'horny' → если сообщение пошлое, содержит секс, возбуждение.\n"
                         "- 'angry' → если сообщение агрессивное, содержит оскорбления.\n"
                         "- 'playful' → если сообщение нейтральное, шутливое или мемное.\n\n"
-                        "⚠️ Отвечай только одним словом."
+                        " Отвечай только одним словом."
                     )
                 },
                 {"role": "user", "content": user_message}
@@ -387,6 +389,19 @@ async def random_art(message: Message) -> None:
         await message.answer_photo(file_id, caption="🎨 Лови артик!")
         logging.info(f"🎨 Выдан случайный арт {file_id}")
 
+# === Обработчик неизвестных команд ===
+KNOWN_COMMANDS = ["/start", "/help", "/randomart", "/artcount"]
+
+@app_router.message(lambda message: message.text.startswith("/") and message.text.split()[0] not in KNOWN_COMMANDS)
+async def unknown_command(message: Message):
+    replies = [
+        "❌Бзз... команда не найдена, ты че там удумал челик?🐾",
+        "❌Такой команды нет в моей прошивке! UwU",
+        "❌Ошибка 404: команда не существует >w<",
+        "❌Бзз! Ты ввёл что-то странное, попробуй /help 💜"
+    ]
+    await message.reply(random.choice(replies))
+
 async def detect_fetish_role(user_message: str) -> str:
     """
     Определяет роль (актив/пассив) при RP с фетишами через нейросеть.
@@ -519,63 +534,64 @@ async def handle_message(message: Message) -> None:
     else:
         messages = [{"role": "system", "content": SYSTEM_PROMPT}]
 
-    # --- DeepSeek ---
-    try:
-        messages.append({"role": "user", "content": user_message})
-        response = await asyncio.to_thread(
-            client.chat.completions.create,
-            model="deepseek-chat",
-            messages=messages
-        )
-        reply = (response.choices[0].message.content or "")  # <-- ответ от DeepSeek (безопасно)
+        # --- DeepSeek ---
+        try:
+            messages.append({"role": "user", "content": user_message})
+            response = await asyncio.to_thread(
+                client.chat.completions.create,
+                model="deepseek-chat",
+                messages=messages
+            )
+            reply = (response.choices[0].message.content or "")  # <-- ответ от DeepSeek (безопасно)
 
-        # --- Добавляем реплики в зависимости от текущего настроения ---
-        if state.MOOD:
-            mood_lines = MOODS.get(state.MOOD, [])
-            if mood_lines and random.random() < 0.3:  # 30% шанс вставки
-                reply += "\n\n" + random.choice(mood_lines)
+            # --- Добавляем реплики в зависимости от текущего настроения ---
+            if state.MOOD:
+                mood_lines = MOODS.get(state.MOOD, [])
+                if mood_lines and random.random() < 0.3:  # 30% шанс вставки
+                    reply += "\n\n" + random.choice(mood_lines)
 
-        # --- Фетиш-намеки в ответах ---
-        if is_rp and fetishes:
-            if random.random() < 0.3:  # 30% шанс
-                fetish_text = ", ".join([FETISH_NAMES.get(f, f) for f in fetishes])
-                tease_lines = [
-                    f"Ммм, похоже ты любишь темы: {fetish_text}… ^w^",
-                    f"Ооо, так вот какие у тебя фетиши — {fetish_text} >///<",
-                    f"Ты явно возбуждаешься от {fetish_text}, верно? UwU",
-                    f"Хех, я обожаю играться с {fetish_text} ;3"
-                ]
-                reply += "\n\n" + random.choice(tease_lines)
+            # --- Фетиш-намеки в ответах ---
+            if is_rp and fetishes:
+                if random.random() < 0.3:  # 30% шанс
+                    fetish_text = ", ".join([FETISH_NAMES.get(f, f) for f in fetishes])
+                    tease_lines = [
+                        f"Ммм, похоже ты любишь темы: {fetish_text}… ^w^",
+                        f"Ооо, так вот какие у тебя фетиши — {fetish_text} >///<",
+                        f"Ты явно возбуждаешься от {fetish_text}, верно? UwU",
+                        f"Хех, я обожаю играться с {fetish_text} ;3"
+                    ]
+                    reply += "\n\n" + random.choice(tease_lines)
 
-        # --- Логика HORNY ---
-        if is_rp:
-            # RP-режим
-            if state.BOT_REPLY_COUNT >= 1:  # начиная со 2-го ответа
-                if random.random() < 0.2:  # 20% шанс
-                    if random.choice([True, False]):
-                        reply = random_horny() + "\n\n" + reply  # в начало
-                    else:
-                        reply += "\n\n" + random_horny()  # в конец
-        else:
-            # Обычный чат
-            if state.BOT_REPLY_COUNT >= 3:  # начиная с 4-го ответа
-                if random.random() < 0.15:  # 15% шанс
-                    add = random_horny()
-                    if add:
-                        reply += "\n\n" + add  # только в конец
+            # --- Логика HORNY ---
+            if is_rp:
+                # RP-режим
+                if state.BOT_REPLY_COUNT >= 1:  # начиная со 2-го ответа
+                    if random.random() < 0.2:  # 20% шанс
+                        if random.choice([True, False]):
+                            reply = random_horny() + "\n\n" + reply  # в начало
+                        else:
+                            reply += "\n\n" + random_horny()  # в конец
+            else:
+                # Обычный чат
+                if state.BOT_REPLY_COUNT >= 3:  # начиная с 4-го ответа
+                    if random.random() < 0.15:  # 15% шанс
+                        add = random_horny()
+                        if add:
+                            reply += "\n\n" + add  # только в конец
 
-        if random.random() < 0.25 and not ends_with_emote(reply):
-            em = pick_emote("NORMAL")
-            reply = f"{reply} {em}".rstrip()
+            if random.random() < 0.25 and not ends_with_emote(reply):
+                em = pick_emote("NORMAL")
+                reply = f"{reply} {em}".rstrip()
 
-        state.BOT_REPLY_COUNT += 1  # увеличиваем после отправки ответа
+            state.BOT_REPLY_COUNT += 1  # увеличиваем после отправки ответа
 
-        for chunk in split_message(reply):
-            await message.answer(chunk)
+            for chunk in split_message(reply):
+                await message.answer(chunk)
 
-    except Exception as e:
-        logging.error(f"Ошибка: {e}", exc_info=True)
-        await message.answer("Бля, у тостера что-то сломалось... ≧◡≦")
+        except Exception as e:
+            logging.error(f"Ошибка: {e}", exc_info=True)
+            await message.answer("Бля, у тостера что-то сломалось... ≧◡≦")
+
 
 # === Запуск ===
 async def main() -> None:
