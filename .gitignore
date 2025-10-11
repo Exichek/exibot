@@ -12,6 +12,7 @@ __pycache__/
 # логи
 bot.log
 logs/
+dev-log/
 
 # локальные настройки
 .env
