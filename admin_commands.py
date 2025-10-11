@@ -143,7 +143,7 @@ async def status_cmd(message: Message) -> None:
     h, m, s = uptime // 3600, (uptime % 3600) // 60, uptime % 60
 
     reply = (
-        "🧠 Статус бота:\n"
+        "Статус бота:\n"
         f"• Uptime: {h:02d}:{m:02d}:{s:02d}\n"
         f"• Пользователей: {len(state.USERS)}\n"
         f"• Ответов отправлено: {state.BOT_REPLY_COUNT}"
